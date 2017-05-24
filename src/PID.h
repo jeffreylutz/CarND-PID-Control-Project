@@ -10,6 +10,13 @@ public:
   double i_error;
   double d_error;
 
+  double total_error;
+  
+  /*
+  * Counter
+  */
+  int cycle_n;
+
   /*
   * Coefficients
   */ 
