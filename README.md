@@ -19,7 +19,8 @@ Then, I increase the Kd until the steering wheels presented critical oscillation
 Then, I repeated the Kp gain increase and Kd increase until the Kd was not effective in eliminating the oscillations.
 Finally, I increased the Ki gain to shorten the dampening period of the steering correction.
 
-I implemented basic PID controller and kept the throttle constant at 0.3
+I implemented logic for speed control based on amount of error and current speed.
+
 
 Final values:
 
