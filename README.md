@@ -2,6 +2,35 @@
 Self-Driving Car Engineer Nanodegree Program
 
 ---
+## Reflection
+
+### Effect of the PID parameters
+
+PID controller has 3 types of gain parameters:
+
+- Kp - Proportional gain is applied to the current cross track error (Kp * CTE). It causes the car to approach the target, but in doing so, car can overshoot its target
+- Ki - Integral gain is applied to the sum of all the cross track error since the car started moving. (Ki * sigma(CTE)). It nullifies the effects of steering drift or Systematic Bias of the car, thus keeping the car on its target. (lane center)
+- Kd - Differential gain is applied to the difference between current CTE and previous CTE. It compensates for the overshoots and bring the car back towards its target.
+
+### Hyperparameters tuning
+
+I started with all three hyperparameters set to 0.  Then, I increased the Kp gain until I noticed the steering wheels oscillating back and forth when a steering input was received.
+Then, I increase the Kd until the steering wheels presented critical oscillation.
+Then, I repeated the Kp gain increase and Kd increase until the Kd was not effective in eliminating the oscillations.
+Finally, I increased the Ki gain to shorten the dampening period of the steering correction.
+
+I implemented basic PID controller and kept the throttle constant at 0.3
+
+Final values:
+
+- Kp = 0.35
+- Ki = 0.01
+- Kd = 0.05
+
+## Result
+
+[![](pid_track.png)](https://youtu.be/QBPpzotW7IM)
+
 
 ## Dependencies
 

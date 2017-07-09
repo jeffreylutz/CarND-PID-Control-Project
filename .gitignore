@@ -1,6 +1,7 @@
 .vscode
 tags
 .editorconfig
+build/
 
 .idea/
 cmake-build-debug/

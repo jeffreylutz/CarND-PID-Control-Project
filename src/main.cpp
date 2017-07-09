@@ -40,7 +40,7 @@ int main()
 //  pid.Init(0.40, 0.01, 0.004);  // max speed: 72 crash? no  smooth? No. worse than 1st
 //  pid.Init(0.30, 0.05, 0.004);  // max speed: 72 crash? yes smooth? No. better than 1st
 //  pid.Init(0.30, 0.15, 0.004);  // max speed: 72 crash? no smooth? Yes, better than 1st
-  pid.Init(0.35, .01, 0.05);
+  pid.Init(0.35, .01, 0.005);
 
 
   h.onMessage([&pid, &c_time, &p_time, &t](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
