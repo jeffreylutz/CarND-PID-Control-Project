@@ -4,12 +4,9 @@
 #include "PID.h"
 #include <math.h>
 
-#include "Twiddle.h"
-
-using namespace std;
-
 // for convenience
 using json = nlohmann::json;
+using namespace std;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -35,22 +32,18 @@ std::string hasData(std::string s) {
 int main()
 {
   uWS::Hub h;
+  PID pid;
+  double c_time = 0.0; // Current frame time
+  double p_time = clock(); // Previous frame time
+  double t = 0.0;  // Total time
+//  pid.Init(0.35, 0.01, 0.004);  // max speed: 74 crash? no  smooth? No
+//  pid.Init(0.40, 0.01, 0.004);  // max speed: 72 crash? no  smooth? No. worse than 1st
+//  pid.Init(0.30, 0.05, 0.004);  // max speed: 72 crash? yes smooth? No. better than 1st
+//  pid.Init(0.30, 0.15, 0.004);  // max speed: 72 crash? no smooth? Yes, better than 1st
+  pid.Init(0.35, .01, 0.05);
 
-  PID steerPID;
 
-  PID speedPID;
-
-  // 30MPH -0.1, -0.00005, -0.5
-
-//  steerPID.Init(-0.1,-0.0005,-0.5);
-  steerPID.Init(-0.01,-0.0005,-0.05);
-
-//  speedPID.Init(0.3,0.002,0.0);
-  speedPID.Init(0.003,0.002,0.0);
-
-  PrintResults();
-
-  h.onMessage([&steerPID,&speedPID](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&pid, &c_time, &p_time, &t](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -59,61 +52,44 @@ int main()
       auto s = hasData(std::string(data));
       if (s != "") {
         auto j = json::parse(s);
-        std::string event = j[0].get<std::string>();
+        string event = j[0].get<string>();
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          double cte = std::stod(j[1]["cte"].get<std::string>());
-          double speed = std::stod(j[1]["speed"].get<std::string>());
-          double angle = std::stod(j[1]["steering_angle"].get<std::string>());
+          double cte = stod(j[1]["cte"].get<string>());
+          double speed = stod(j[1]["speed"].get<string>());
+          double angle = stod(j[1]["steering_angle"].get<string>());
           double steer_value;
-      	  double speed_value;
-  	  double setSpeed = 20.0;
-
-  	  		
-          /*
-          * TODO: Calcuate steering value here, remember the steering value is
-          * [-1, 1].
-          * NOTE: Feel free to play around with the throttle and speed. Maybe use
-          * another PID controller to control the speed!
-          */
-
-
-          steer_value = steerPID.Kp*cte+steerPID.Ki*steerPID.i_error+steerPID.Kd*steerPID.d_error;
-          speed_value = speedPID.Kp*(setSpeed-speed)+speedPID.Ki*speedPID.i_error+speedPID.Kd*speedPID.d_error;
-	  	  steerPID.UpdateError(cte);
-	  	  speedPID.UpdateError((setSpeed-speed));
-	
-          // DEBUG
-          //std::cout << "Cycle: " << steerPID.cycle_n << " Error "<< steerPID.TotalError() << std::endl;
-
-	  bool twiddle = true;
-	  
-	  if(twiddle && (steerPID.TotalError() > GetBestError() ||  steerPID.cycle_n > 4000 || ((speed < setSpeed*.2) && (steerPID.cycle_n > 50 ))  ) )
-	  {
-	     if((speed < setSpeed*.2)&&(steerPID.cycle_n > 50))
-	     {
-		cout << "Car got stuck!" << endl;
-		steerPID= UpdateTwiddle(steerPID, 1000000);
-	     }
-	     else
-	     {
-	     	steerPID = UpdateTwiddle(steerPID, steerPID.TotalError());
-	     }
-	     PrintResults();
-             std::string msg = "42[\"reset\",{}]";
-	     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+          c_time = clock();
+          double dt = (c_time - p_time) / CLOCKS_PER_SEC;
+          // Set throttle
+          double thr = 0.8;
+          if (fabs(cte)>0.5){
+            thr = 0.5;
           }
-	  else
-	  {
-             json msgJson;
-             msgJson["steering_angle"] = steer_value;
-             msgJson["throttle"] = speed_value;
-             auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-             // std::cout << msg << std::endl;
-             ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  } 
-
-
+          if (fabs(pid.p_error - cte) > 0.1 and fabs(pid.p_error - cte) <= 0.2){
+            thr = 0.0;
+          }
+          else if (fabs(pid.p_error - cte) > 0.2 and speed > 30){
+            thr = -0.2; // Break!
+          }
+          pid.UpdateError(cte, dt);
+          steer_value = -pid.TotalError(speed);
+          // Correct steer_value to range [-1..1]
+          if (steer_value > 1) {
+            steer_value = 1;
+          }
+          else if (steer_value < -1) {
+            steer_value = -1;
+          }
+          json msgJson;
+          msgJson["steering_angle"] = steer_value;
+          msgJson["throttle"] = thr;
+          auto msg = "42[\"steer\"," + msgJson.dump() + "]";
+          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+          // DEBUG output uncomment
+          //t += dt;
+          //cout << t << ";" << cte << ";" << speed << ";" << angle << ";" << steer_value * 25.0 << ";" << pid.i_error << ";\n";
+          p_time = c_time;
         }
       } else {
         // Manual driving
@@ -123,10 +99,10 @@ int main()
     }
   });
 
-  // We don't need this since we're not using HTTP but if it's removed the program
+  //We don't need this since we're not using HTTP but if it's removed the program
   // doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data, size_t, size_t) {
-    const std::string s = "<h1>Hello world!</h1>";
+    const string s = "<h1>Hello world!</h1>";
     if (req.getUrl().valueLength == 1)
     {
       res->end(s.data(), s.length());
@@ -157,5 +133,6 @@ int main()
     std::cerr << "Failed to listen to port" << std::endl;
     return -1;
   }
+  std::cout << "HELLO\n";
   h.run();
 }
