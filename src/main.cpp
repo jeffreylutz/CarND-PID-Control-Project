@@ -69,8 +69,8 @@ int main()
           if (fabs(pid.p_error - cte) > 0.1 and fabs(pid.p_error - cte) <= 0.2){
             thr = 0.0;
           }
-          else if (fabs(pid.p_error - cte) > 0.2 and speed > 30){
-            thr = -0.2; // Break!
+          else if (fabs(pid.p_error - cte) > 0.25 and speed > 40){
+            thr = -0.25; // brake!
           }
           pid.UpdateError(cte, dt);
           steer_value = -pid.TotalError(speed);
